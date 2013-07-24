@@ -82,6 +82,9 @@ def sample_gfun_dict_nochange(s, additional="qoo."):
 
 
 class TestGlobalFunction(unittest.TestCase):
+    """
+    Test-cases for applying hooks to global functions
+    """
     def test_int_before(self):
         """
         make sure 'before' hook can work

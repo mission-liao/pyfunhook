@@ -87,6 +87,11 @@ class Hook(object):
         self.opt_accept_kwargs = True 
         # hooks are "before" type by default
         self.opt_accept_ret = False
+        # accept 'self' as first-parameter
+        # when hooked on a class-method.
+        # this parameter would be 'None' for
+        # unbounded method
+        self.opt_accept_self = False
 
     @property
     def accept_ret(self):
@@ -109,6 +114,17 @@ class Hook(object):
             raise TypeError(Hook.error_type_not_bool)
         
         self.opt_accept_kwargs = v
+        
+    @property
+    def accept_self(self):
+        return self.opt_accept_self
+    
+    @accept_self.setter
+    def accept_self(self, v):
+        if type(v) != bool:
+            raise TypeError(Hook.error_type_not_bool)
+
+        self.opt_accept_self = v
 
  
 class HookManager(object):
@@ -123,18 +139,28 @@ class HookManager(object):
 
             h.accept_ret = accept_ret
 
-        self.hooks = hooks
+        self._hooks = hooks
+        self._accept_ret = accept_ret
+        
+    def __call__(self, fn):
+        return _wrapper(fn, self._hooks, not self._accept_ret, None)
 
     @staticmethod 
-    def _inner_call(hooks, ret, args, kwargs):
+    def _inner_call(hooks, ret, args, kwargs, f, obj):
         """
         loop through hooks
         """
         a_ = args
         k_ = kwargs
         for h in hooks:
+            if h.opt_accept_self:
+                a_ = (obj, ) + a_
             try:
                 k2_ = None
+                """
+                handle Hook.accept_ret and Hook.accept_kwargs
+                option
+                """
                 if h.opt_accept_ret == True:
                     if h.opt_accept_kwargs == True:
                         ret, a_, k2_ = h(ret, *a_, **k_)
@@ -152,8 +178,52 @@ class HookManager(object):
             except Exception as e:
                 # TODO: how to handle error in hooks?
                 raise e
-
+            finally:
+                if h.opt_accept_self:
+                    a_ = a_[1:]
+            
         return ret, a_, k_
+
+
+class _wrapper(object):
+    def __init__(self, fn, hooks, accept_ret, obj):
+        self._fn = fn
+        self._hooks = hooks
+        self._accept_ret = accept_ret
+        self._obj = obj 
+
+    def __get__(self, obj, obj_type):
+        """
+        refer to
+            http://blog.ianbicking.org/2008/10/24/decorators-and-descriptors/
+            
+        for more information
+        """
+        if obj == None:
+            return self
+        
+        new_fn = self._fn.__get__(obj, obj_type)
+        return self.__class__(new_fn, self._hooks, self._accept_ret, obj)
+    
+    def __call__(self, *args, **kwargs):
+        if self._accept_ret:
+            _, a_, k_ = HookManager._inner_call(self._hooks, None, args, kwargs, self._fn, self._obj)
+            return self._fn(*a_, **k_)
+        else:
+            """
+            for functions without value, ret here would
+            receive None. It's up to hooks to handle such case
+            """
+            try:
+                ret = self._fn(*args, **kwargs)
+            except Exception as e:
+                # TODO: how to handle exception from
+                # wrapped function. Should we hold this
+                # exception and raise it after looping hooks.
+                raise e
+           
+            ret, _, _ = HookManager._inner_call(self._hooks, ret, args, kwargs, self._fn, self._obj)
+            return ret
 
 
 class before(HookManager):
@@ -164,13 +234,6 @@ class before(HookManager):
     def __init__(self, hooks):
         super(before, self).__init__(hooks, False)
 
-    def __call__(self, fn):
-        def new_fn(*args, **kwargs):
-            _, a_, k_ = HookManager._inner_call(self.hooks, None, args, kwargs)
-            return fn(*a_, **k_)
-
-        return new_fn
-
 
 class after(HookManager):
     """
@@ -179,23 +242,3 @@ class after(HookManager):
     """
     def __init__(self, hooks):
         super(after, self).__init__(hooks, True)
-
-    def __call__(self, fn):
-        def new_fn(*args, **kwargs):
-
-            """
-            for functions without value, ret here would
-            receive None. It's up to hooks to handle such case
-            """
-            try:
-                ret = fn(*args, **kwargs)
-            except Exception as e:
-                # TODO: how to handle exception from
-                # wrapped function. Should we hold this
-                # exception and raise it after looping hooks.
-                raise e
-           
-            ret, _, _ = HookManager._inner_call(self.hooks, ret, args, kwargs)
-            return ret
-
-        return new_fn

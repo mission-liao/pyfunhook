@@ -8,7 +8,8 @@ Created on Jul 22, 2013
 import unittest
 
 TEST_MODULES = [
-    'funhook.test.gfun'
+    'funhook.test.gfun',
+    'funhook.test.cls',
 ]
 
 if __name__ == "__main__":
