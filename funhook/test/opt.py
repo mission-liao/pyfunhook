@@ -283,7 +283,7 @@ class TestOption(unittest.TestCase):
     """
     def test_none(self):
         h = h_none()
-        wrapped_fn = funhook.in_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is', ' cool'), 'this is cool')
         self.assertEqual(h.is_called, True)
        
@@ -297,7 +297,7 @@ class TestOption(unittest.TestCase):
     """
     def test_apa(self):
         h = h_apa()
-        wrapped_fn = funhook.in_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is ', ' cool'), 'this is h_apa cool')
 
         # test kwargs
@@ -305,12 +305,12 @@ class TestOption(unittest.TestCase):
     
     def test_ak(self):
         h = h_ak()
-        wrapped_fn = funhook.in_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is', ' cool', is_double=True), 'this is cool')
         
     def test_ar(self):
         h = h_ar()
-        wrapped_fn = funhook.out_([h])(fn_multi_ret)
+        wrapped_fn = funhook.attach_([h])(fn_multi_ret)
         self.assertEqual(wrapped_fn('this is', ' cool', is_double=True), ('this is cool cool qoo.', 16))
     
     def test_as(self):
@@ -319,7 +319,7 @@ class TestOption(unittest.TestCase):
 
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.in_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is coolh_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
@@ -332,12 +332,12 @@ class TestOption(unittest.TestCase):
     """
     def test_apa_ak(self):
         h = h_apa_ak()
-        wrapped_fn = funhook.in_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is ', ' cool'), 'this is h_apa_ak cool cool')
     
     def test_apa_ar(self):
         h = h_apa_ar()
-        wrapped_fn = funhook.out_([h])(fn_multi_ret)
+        wrapped_fn = funhook.attach_([h])(fn_multi_ret)
         self.assertEqual(wrapped_fn('this is ', 'cool'), ('this is coolh_apa_ar', 12))
         self.assertEqual(h.ori, "this is ")
         self.assertEqual(h.app, "cool")
@@ -348,7 +348,7 @@ class TestOption(unittest.TestCase):
 
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.in_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_as coolh_apa_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
@@ -356,7 +356,7 @@ class TestOption(unittest.TestCase):
                   
     def test_apa_ak_ar(self):
         h = h_apa_ak_ar()
-        wrapped_fn = funhook.out_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is ', 'cool', is_double=True), 'this is coolcoolh_apa_ak_ar')
         self.assertEqual(h.ori, 'this is ')
         self.assertEqual(h.app, 'cool')
@@ -368,7 +368,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.out_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ak_ar_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
             self.assertEqual(h.ori, 'this is')
@@ -383,7 +383,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.in_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_ak_as cool coolh_apa_ak_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
@@ -395,7 +395,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.out_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ar_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
             self.assertEqual(h.ori, "this is")
@@ -408,7 +408,7 @@ class TestOption(unittest.TestCase):
     """
     def test_ak_ar(self):
         h = h_ak_ar()
-        wrapped_fn = funhook.out_([h])(fn)
+        wrapped_fn = funhook.attach_([h])(fn)
         self.assertEqual(wrapped_fn('this is ', 'cool'), 'this is coolh_ak_ar')
         self.assertEqual(h.is_double, False)
         
@@ -418,7 +418,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.in_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
@@ -430,7 +430,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.in_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
@@ -445,7 +445,7 @@ class TestOption(unittest.TestCase):
         
         ori_fn = cls.fn
         try:
-            cls.fn = funhook.out_([h])(c.fn)
+            cls.fn = funhook.attach_([h])(c.fn)
             self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_ar_as')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:

@@ -5,13 +5,13 @@ Created on Jul 22, 2013
 '''
 
 
-# TODO: for 'in_' case, try to handle functions
-# without return-value.
+# TODO: try to handle functions without return-value.
 # TODO: add case for 'inout' trigger
 # TODO: add case for invalid trigger value
 # TODO: write guide to let users know for multiple return values
 # TODO: add dynamic load/unload hooks in HookManager? it seems a complex
 #       problem because of multi-access-control.
+
 
 class setup(object):
 
@@ -40,7 +40,7 @@ class Hook(object):
                ... do something
                return (a, b, c,), {"isDebug": isDebug}
 
-       @funhook.in_([myhook(...)])
+       @funhook.attach_([myhook(...)])
        def myfunc(a, b, c, isDebug=False):
            pass
 
@@ -51,7 +51,7 @@ class Hook(object):
            def __init__(self, allow_rethrow=True):
                ...
                
-       @funhook.in_([myhook(allow_rethrow=False)])
+       @funhook.attach_([myhook(allow_rethrow=False)])
        def myfunc(...)
        
        If the function to be wrapped coming with a massive
@@ -82,22 +82,15 @@ class Hook(object):
                ... do something
                return ret, (a, b, c,), {"isDebug": isDebug}
 
-       @funhook.out_([myhook])
+       @funhook.attach_([myhook])
        def myfunc(a, b, c, isDebug=Fales):
            pass
     """
   
     # standard error message for wrong type with option.
     error_type_not_bool = "Please assign options with bool."
-    # standard error message for wrong trigger option. 
-    error_not_a_valid_trigger = "Not a valid trigger option"
     # error message for wrong config
     error_wrong_config = "Such configuration is wrong."
-
-    # value of trigger option
-    IN_ = 1
-    OUT_ = 2
-    INOUT_ = 3
 
     def __init__(self):
         """
@@ -114,9 +107,6 @@ class Hook(object):
         # this parameter would be 'None' for
         # unbounded method
         self.opt_accept_self = False
-        # if this hook is called 'in_', 'out_'
-        # or 'inout_' of the wrapped function.
-        self.opt_trigger = Hook.INOUT_
 
     @property
     def accept_pos_args(self):
@@ -137,9 +127,6 @@ class Hook(object):
     def accept_ret(self, v):
         if type(v) != bool:
             raise TypeError(Hook.error_type_not_bool)
-
-        if self.trigger == Hook.IN_ and v == True:
-            raise ValueError(Hook.error_wrong_config)
 
         self.opt_accept_ret = v
 
@@ -165,40 +152,26 @@ class Hook(object):
 
         self.opt_accept_self = v
 
-    @property
-    def trigger(self):
-        return self.opt_trigger
-    
-    @trigger.setter
-    def trigger(self, v):
-        if  v != Hook.OUT_ and  \
-            v != Hook.IN_ and \
-            v != Hook.INOUT_:
-            raise TypeError(Hook.error_not_a_valid_trigger + " " + str(v))
-        
-        if self.accept_ret and v == Hook.IN_:
-            raise ValueError(Hook.error_wrong_config)
-
-        self.opt_trigger = v
  
 class HookManager(object):
     """
     base hook-mamanger implementation
     """
-    def __init__(self, hooks, trigger):
-        # make sure this trigger is valid
-        Hook().trigger = trigger
-
+    
+    # hook context
+    IN_ = 1
+    OUT_ = 2
+    
+    def __init__(self, hooks):
         # make sure every hook is subclass from 'Hook'
         for h in hooks:
             if not issubclass(type(h), Hook):
                 raise TypeError("Please implement hooks as funhook.Hook class.")
 
         self._hooks = hooks
-        self._trigger = trigger
 
     def __call__(self, fn):
-        return _wrapper(fn, self._hooks, self._trigger, None)
+        return _wrapper(fn, self._hooks, None)
 
     @staticmethod 
     def _inner_call(hooks, ret, args, kwargs, inst, ctx):
@@ -207,13 +180,26 @@ class HookManager(object):
         """
         a_ = args
         k_ = kwargs
-        for h in hooks:
+       
+        iter_ = None 
+        if ctx == HookManager.IN_:
+            iter_ = hooks
+        elif ctx == HookManager.OUT_:
+            iter_ = reversed(hooks)
+            
+        if iter_ == None:
+            raise ValueError("unknown context: " + str(ctx))
+            
+        for h in iter_:
             # prepare function pointer
             fn_ = None
-            if ctx == Hook.IN_:
+            if ctx == HookManager.IN_ and hasattr(h, 'before'):
                 fn_ = h.before
-            elif ctx == Hook.OUT_:
+            elif ctx == HookManager.OUT_ and hasattr(h, 'after'):
                 fn_ = h.after
+            
+            if fn_ == None:
+                continue
 
             try:
                 k2_ = None
@@ -288,10 +274,9 @@ class _wrapper(object):
     """
     The actual function class we return to user
     """
-    def __init__(self, fn, hooks, trigger, inst):
+    def __init__(self, fn, hooks, inst):
         self._fn = fn
         self._hooks = hooks
-        self._trigger = trigger
         self._inst = inst
         self._cache_bound_funobj = None
 
@@ -307,65 +292,28 @@ class _wrapper(object):
 
         if self._cache_bound_funobj == None:
             new_fn = self._fn.__get__(obj, obj_type)
-            self._cache_bound_funobj = self.__class__(new_fn, self._hooks, self._trigger, obj)
+            self._cache_bound_funobj = self.__class__(new_fn, self._hooks, obj)
 
         return self._cache_bound_funobj
     
     def __call__(self, *args, **kwargs):
-        if self._trigger == Hook.IN_:
-            _, a_, k_ = HookManager._inner_call(self._hooks, None, args, kwargs, self._inst, Hook.IN_)
-            return self._fn(*a_, **k_)
-        elif self._trigger == Hook.OUT_:
-            """
-            for functions without value, ret here would
-            receive None. It's up to hooks to handle such case
-            """
-            try:
-                ret = self._fn(*args, **kwargs)
-            except Exception as e:
-                # TODO: how to handle exception from
-                # wrapped function. Should we hold this
-                # exception and raise it after looping hooks.
-                raise e
-           
-            ret, _, _ = HookManager._inner_call(self._hooks, ret, args, kwargs, self._inst, Hook.OUT_)
-            return ret
-        elif self._trigger == Hook.INOUT_:
-            _, a_, k_ = HookManager._inner_call(self._hooks, None, args, kwargs, self._inst, Hook.IN_)
-            try:
-                ret = self._fn(*args, **kwargs)
-            except Exception as e:
-                # TODO: how to handle exception from
-                # wrapped function. Should we hold this
-                # exception and raise it after looping hooks.
-                raise e
+        # TODO: provide options to skip one direction when all hooks are either IN_ or OUT_
+        _, a_, k_ = HookManager._inner_call(self._hooks, None, args, kwargs, self._inst, HookManager.IN_)
+        try:
+            ret = self._fn(*a_, **k_)
+        except Exception as e:
+            # TODO: how to handle exception from
+            # wrapped function. Should we hold this
+            # exception and raise it after looping hooks.
+            raise e
 
-            ret, _, _ = HookManager._inner_call(self._hooks, ret, args, kwargs, self._inst, Hook.OUT_)
-        else:
-            raise ValueError("Invalid Trigger Option: " + str(self._trigger))
+        ret, _, _ = HookManager._inner_call(self._hooks, ret, a_, k_, self._inst, HookManager.OUT_)
+        return ret
 
 
-class in_(HookManager):
+class attach_(HookManager):
     """
-    A decorator to hook "in" call into a function.
-    
+    A decorator to hook 'in' and 'out' of a function
     """
-    def __init__(self, hooks):
-        super(in_, self).__init__(hooks, Hook.IN_)
-
-
-class out_(HookManager):
-    """
-    A decorator to hook "out" call into a function.
-    
-    """
-    def __init__(self, hooks):
-        super(out_, self).__init__(hooks, Hook.OUT_)
-
-
-class inout_(HookManager):
-    """
-    A decorator to hook "in" and "out" call into a function
-    """
-    def __init__(self, hooks):
-        super(inout_, self).__init__(hooks, Hook.INOUT_)
+    def __init(self, hooks):
+        super(attach_, self).__init__(hooks)

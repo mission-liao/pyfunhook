@@ -16,7 +16,7 @@ class sample_hook_int(funhook.Hook):
     def before(self, n):
         return (n+2, ), None
 
-@funhook.in_([sample_hook_int()])
+@funhook.attach_([sample_hook_int()])
 def sample_gfun_int(n):
     return n+1
 
@@ -44,8 +44,9 @@ class sample_hook_string_after(funhook.Hook):
     def after(self, ret, s):
         return ret+"_after", (s, ), None
 
-@funhook.in_([sample_hook_string_before()])
-@funhook.out_([sample_hook_string_after()])
+@funhook.attach_([
+    sample_hook_string_before(),
+    sample_hook_string_after()])
 def sample_gfun_string(s):
     return s + "_inner"
 
@@ -60,7 +61,7 @@ class sample_hook_dict_before(funhook.Hook):
     def before(self, s, additional="qoo."):
         return (s,), {"additional": "mylove."}
 
-@funhook.in_([sample_hook_dict_before()])
+@funhook.attach_([sample_hook_dict_before()])
 def sample_gfun_dict(s, additional="qoo."):
     return s + additional
 
@@ -77,7 +78,7 @@ class sample_hook_dict_before_nochange(funhook.Hook):
     def before(self, s):
         return (s,)
 
-@funhook.in_([sample_hook_dict_before_nochange()])
+@funhook.attach_([sample_hook_dict_before_nochange()])
 def sample_gfun_dict_nochange(s, additional="qoo."):
     return s + additional
 

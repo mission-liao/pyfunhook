@@ -17,7 +17,7 @@ class sample_hook(funhook.Hook):
     def before(self, n):
         return (n+1, )
 
-@funhook.in_([sample_hook()])
+@funhook.attach_([sample_hook()])
 def test(n):
     return n+1
 
@@ -37,11 +37,11 @@ class sample_class(funhook.Hook):
     def __init__(self):
         self.chk = True
 
-    @funhook.in_([sample_hook()])
+    @funhook.attach_([sample_hook()])
     def sample_func(self, n):
         return n + 1
     
-    @funhook.in_([sample_hook_accept_self()])
+    @funhook.attach_([sample_hook_accept_self()])
     def sample_func_accept_self(self, n):
         return n + 3
 
@@ -50,7 +50,7 @@ class sample_cls_inhert_parent(object):
     def __init__(self):
         pass
    
-    @funhook.in_([sample_hook()]) 
+    @funhook.attach_([sample_hook()]) 
     def func(self, n):
         return n + 1
 
