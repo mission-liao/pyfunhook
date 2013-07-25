@@ -10,13 +10,13 @@ import funhook
 
 
 class sample_hook_int(funhook.Hook):
-    def __init(self):
+    def __init__(self):
         super(sample_hook_int, self).__init__()
 
-    def __call__(self, n):
+    def before(self, n):
         return (n+2, ), None
 
-@funhook.before([sample_hook_int()])
+@funhook.in_([sample_hook_int()])
 def sample_gfun_int(n):
     return n+1
 
@@ -29,7 +29,7 @@ class sample_hook_string_before(funhook.Hook):
     def __init__(self):
         super(sample_hook_string_before, self).__init__()
     
-    def __call__(self, s):
+    def before(self, s):
         return (s+"_before", ), None
 
 class sample_hook_string_after(funhook.Hook):
@@ -39,12 +39,13 @@ class sample_hook_string_after(funhook.Hook):
     """
     def __init__(self):
         super(sample_hook_string_after, self).__init__()
+        self.accept_ret = True
 
-    def __call__(self, ret, s):
+    def after(self, ret, s):
         return ret+"_after", (s, ), None
 
-@funhook.before([sample_hook_string_before()])
-@funhook.after([sample_hook_string_after()])
+@funhook.in_([sample_hook_string_before()])
+@funhook.out_([sample_hook_string_after()])
 def sample_gfun_string(s):
     return s + "_inner"
 
@@ -56,10 +57,10 @@ class sample_hook_dict_before(funhook.Hook):
     def __init(self, accept_kwargs):
         super(sample_hook_dict_before, self).__init__()
         
-    def __call__(self, s, additional="qoo."):
+    def before(self, s, additional="qoo."):
         return (s,), {"additional": "mylove."}
 
-@funhook.before([sample_hook_dict_before()])
+@funhook.in_([sample_hook_dict_before()])
 def sample_gfun_dict(s, additional="qoo."):
     return s + additional
 
@@ -73,10 +74,10 @@ class sample_hook_dict_before_nochange(funhook.Hook):
         super(sample_hook_dict_before_nochange, self).__init__()
         self.accept_kwargs = False
 
-    def __call__(self, s):
+    def before(self, s):
         return (s,)
 
-@funhook.before([sample_hook_dict_before_nochange()])
+@funhook.in_([sample_hook_dict_before_nochange()])
 def sample_gfun_dict_nochange(s, additional="qoo."):
     return s + additional
 

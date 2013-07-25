@@ -14,10 +14,10 @@ class sample_hook(funhook.Hook):
         super(sample_hook, self).__init__()
         self.accept_kwargs = False
 
-    def __call__(self, n):
+    def before(self, n):
         return (n+1, )
 
-@funhook.before([sample_hook()])
+@funhook.in_([sample_hook()])
 def test(n):
     return n+1
 
@@ -26,24 +26,41 @@ class sample_hook_accept_self(funhook.Hook):
         super(sample_hook_accept_self, self).__init__()
         self.accept_kwargs = False
         self.accept_self = True
-        
-    def __call__(self, obj, n):
-        obj.chk = False
-        return (obj, n+2, )
+        self.accept_pos_args = True
+
+    def before(self, inst, n):
+        inst.chk = False
+        return (n+2, )
 
 
 class sample_class(funhook.Hook):
     def __init__(self):
         self.chk = True
 
-    @funhook.before([sample_hook()])
+    @funhook.in_([sample_hook()])
     def sample_func(self, n):
         return n + 1
     
-    @funhook.before([sample_hook_accept_self()])
+    @funhook.in_([sample_hook_accept_self()])
     def sample_func_accept_self(self, n):
         return n + 3
 
+
+class sample_cls_inhert_parent(object):
+    def __init__(self):
+        pass
+   
+    @funhook.in_([sample_hook()]) 
+    def func(self, n):
+        return n + 1
+
+@funhook.setup
+class sample_cls_inhert_child(sample_cls_inhert_parent):
+    def __init__(self):
+        pass
+
+    def func(self, n):
+        return n + 100
 
 class TestClass(unittest.TestCase):
     """
@@ -69,4 +86,8 @@ class TestClass(unittest.TestCase):
         as long as its signature is matched.
         """
         self.assertEqual(test(1), 3)
-        
+
+    def _test_basic_inhert(self):
+        sc = sample_cls_inhert_child()
+        # TODO: not implemented yet
+        #self.assertEqual(sc.func(1), 102)

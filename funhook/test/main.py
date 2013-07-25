@@ -4,12 +4,12 @@ Created on Jul 22, 2013
 @author: Mission Liao
 '''
 
-
 import unittest
 
 TEST_MODULES = [
     'funhook.test.gfun',
     'funhook.test.cls',
+    'funhook.test.opt',
 ]
 
 if __name__ == "__main__":
