@@ -83,6 +83,53 @@ def sample_gfun_dict_nochange(s, additional="qoo."):
     return s + additional
 
 
+class h_no_ret(funhook.Hook):
+    def __init__(self):
+        super(h_no_ret, self).__init__()
+        self.accept_kwargs = True
+        self.accept_pos_args = True
+        self.accept_ret = True
+        self.accept_self = True
+
+        self.pass_before = False
+        self.pass_after = False
+
+    def before(self, inst, s):
+        self.pass_before = True
+        return (s, ), {}
+    
+    def after(self, ret, inst, s):
+        self.pass_after = True
+        return ret, (s, ), {}
+
+
+def fn_no_ret(s):
+    pass
+
+class h_comb_str(funhook.Hook):
+    def __init__(self, new_s, new_app):
+        self.accept_kwargs = False
+        self.accept_pos_args = True
+        self.accept_ret = True
+        self.accept_self = False
+        self.new_s = new_s
+        self.new_app = new_app
+        
+    def before(self, s, app):
+        return (self.new_s+s, app, )
+    
+    def after(self, ret, s, app):
+        return ret+self.new_app, (s, app, )
+
+@funhook.attach_([
+    h_comb_str('s1', 'app1'),
+    h_comb_str('s2', 'app2'),
+    h_comb_str('s3', 'app3'),
+    h_comb_str('s4', 'app4'),
+    h_comb_str('s5', 'app5')])
+def fn_comb_str(s, app):
+    return s + app
+
 class TestGlobalFunction(unittest.TestCase):
     """
     Test-cases for applying hooks to global functions
@@ -112,4 +159,16 @@ class TestGlobalFunction(unittest.TestCase):
         self.assertEqual(sample_gfun_dict_nochange("You are "), "You are qoo.")
         self.assertEqual(sample_gfun_dict_nochange("You are ", additional="Cool Mission."), "You are Cool Mission.")
         
-        # TODO: add case for multiple default arguments.
+    def test_no_return(self):
+        """
+        make sure nothing goes wrong when function returning nothing
+        """
+        h = h_no_ret()
+        wrapped_fn = funhook.attach_([h])(fn_no_ret)
+        wrapped_fn(1)
+        self.assertEqual(h.pass_after, True)
+        self.assertEqual(h.pass_before, True)
+        
+    def test_hook_ordering(self):
+        self.assertEqual(fn_comb_str(' this is ', 'cool '), 's5s4s3s2s1 this is cool app5app4app3app2app1')
+

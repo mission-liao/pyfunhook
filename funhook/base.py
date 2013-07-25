@@ -5,14 +5,14 @@ Created on Jul 22, 2013
 '''
 
 
-# TODO: try to handle functions without return-value.
 # TODO: add case for 'inout' trigger
-# TODO: add case for invalid trigger value
 # TODO: write guide to let users know for multiple return values
 # TODO: add dynamic load/unload hooks in HookManager? it seems a complex
 #       problem because of multi-access-control.
 # TODO: provide options to skip scanning one direction of hooks
 #       when all hooks are either IN_ or OUT_
+# TODO: add case for multiple default arguments.
+
 
 class setup(object):
 
@@ -189,7 +189,7 @@ class HookManager(object):
             
         if iter_ == None:
             raise ValueError("unknown context: " + str(ctx))
-            
+
         for h in iter_:
             # prepare function pointer
             fn_ = None
@@ -200,6 +200,9 @@ class HookManager(object):
             
             if fn_ == None:
                 continue
+
+            # prepare for opt_accept_ret
+            tmp_accept_ret = h.opt_accept_ret and ctx == HookManager.OUT_
 
             try:
                 k2_ = None
@@ -213,7 +216,7 @@ class HookManager(object):
                 """
                 # TODO: is there a good way
                 # to handle such mass??
-                if h.opt_accept_ret:
+                if tmp_accept_ret:
                     if h.opt_accept_kwargs:
                         if h.opt_accept_pos_args:
                             if h.opt_accept_self:
