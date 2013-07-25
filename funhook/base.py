@@ -11,7 +11,8 @@ Created on Jul 22, 2013
 # TODO: write guide to let users know for multiple return values
 # TODO: add dynamic load/unload hooks in HookManager? it seems a complex
 #       problem because of multi-access-control.
-
+# TODO: provide options to skip scanning one direction of hooks
+#       when all hooks are either IN_ or OUT_
 
 class setup(object):
 
@@ -171,10 +172,9 @@ class HookManager(object):
         self._hooks = hooks
 
     def __call__(self, fn):
-        return _wrapper(fn, self._hooks, None)
+        return _wrapper(fn, self, None)
 
-    @staticmethod 
-    def _inner_call(hooks, ret, args, kwargs, inst, ctx):
+    def _inner_call(self, ret, args, kwargs, inst, ctx):
         """
         loop through hooks
         """
@@ -183,9 +183,9 @@ class HookManager(object):
        
         iter_ = None 
         if ctx == HookManager.IN_:
-            iter_ = hooks
+            iter_ = self._hooks
         elif ctx == HookManager.OUT_:
-            iter_ = reversed(hooks)
+            iter_ = reversed(self._hooks)
             
         if iter_ == None:
             raise ValueError("unknown context: " + str(ctx))
@@ -274,9 +274,9 @@ class _wrapper(object):
     """
     The actual function class we return to user
     """
-    def __init__(self, fn, hooks, inst):
+    def __init__(self, fn, hook_mgr, inst):
         self._fn = fn
-        self._hooks = hooks
+        self._hook_mgr = hook_mgr
         self._inst = inst
         self._cache_bound_funobj = None
 
@@ -292,13 +292,13 @@ class _wrapper(object):
 
         if self._cache_bound_funobj == None:
             new_fn = self._fn.__get__(obj, obj_type)
-            self._cache_bound_funobj = self.__class__(new_fn, self._hooks, obj)
+            self._cache_bound_funobj = self.__class__(new_fn, self._hook_mgr, obj)
 
         return self._cache_bound_funobj
     
     def __call__(self, *args, **kwargs):
-        # TODO: provide options to skip one direction when all hooks are either IN_ or OUT_
-        _, a_, k_ = HookManager._inner_call(self._hooks, None, args, kwargs, self._inst, HookManager.IN_)
+
+        _, a_, k_ = HookManager._inner_call(self._hook_mgr, None, args, kwargs, self._inst, HookManager.IN_)
         try:
             ret = self._fn(*a_, **k_)
         except Exception as e:
@@ -307,7 +307,7 @@ class _wrapper(object):
             # exception and raise it after looping hooks.
             raise e
 
-        ret, _, _ = HookManager._inner_call(self._hooks, ret, a_, k_, self._inst, HookManager.OUT_)
+        ret, _, _ = HookManager._inner_call(self._hook_mgr, ret, a_, k_, self._inst, HookManager.OUT_)
         return ret
 
 
