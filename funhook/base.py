@@ -7,20 +7,9 @@ Created on Jul 22, 2013
 
 # TODO: add case for 'inout' trigger
 # TODO: write guide to let users know for multiple return values
-# TODO: add dynamic load/unload hooks in HookManager? it seems a complex
-#       problem because of multi-access-control.
 # TODO: provide options to skip scanning one direction of hooks
 #       when all hooks are either IN_ or OUT_
 # TODO: add case for multiple default arguments.
-
-
-class setup(object):
-
-    def __init__(self, klass):
-        pass
-    
-    def __call__(self):
-        pass
 
 
 class Hook(object):
@@ -153,26 +142,103 @@ class Hook(object):
 
         self.opt_accept_self = v
 
- 
-class HookManager(object):
+
+class ClsHook(Hook):
     """
-    base hook-mamanger implementation
+    Hook for class
+    """
+    
+    err_msg_op_prohibit = "This action is prohibit."
+    err_msg_no_after = "\'after\' member function is not allowed."
+    
+    def __init__(self):
+        super(ClsHook, self).__init__()
+        self.opt_accept_kwargs = False
+        self.opt_accept_pos_args = True
+        self.opt_accept_ret = False
+        self.opt_accept_self = False
+        
+        if hasattr(self, 'after'):
+            raise Exception(ClsHook.err_msg_no_after)
+
+    """
+        Prohibit all properties' modification
+    """
+    @property
+    def accept_kwargs(self):
+        return self.opt_accept_kwargs
+
+    @accept_kwargs.setter
+    def accept_kwargs(self, v):
+        raise Exception(ClsHook.err_msg_op_prohibit)
+    
+    @property
+    def accept_pos_args(self):
+        return self.opt_pos_args
+
+    @accept_pos_args.setter
+    def accept_pos_args(self, v):
+        raise Exception(ClsHook.err_msg_op_prohibit)
+
+    @property
+    def accept_ret(self):
+        return self.opt_accept_ret
+
+    @accept_ret.setter
+    def accept_ret(self, v):
+        raise Exception(ClsHook.err_msg_op_prohibit)
+
+    @property
+    def accept_self(self):
+        return self.opt_accept_self
+
+    @accept_self.setter
+    def accept_self(self, v):
+        raise Exception(ClsHook.err_msg_op_prohibit)
+ 
+class HookMgr(object):
+    """
+    base hook-manager implementation
     """
     
     # hook context
     IN_ = 1
     OUT_ = 2
     
-    def __init__(self, hooks):
+    # target type
+    CLASS_ = 1
+    FN_ = 2
+
+    err_msg_wrong_target_type = "invalid target type [{}]"
+
+    def __init__(self, hooks, tget_type):
         # make sure every hook is subclass from 'Hook'
         for h in hooks:
             if not issubclass(type(h), Hook):
                 raise TypeError("Please implement hooks as funhook.Hook class.")
 
         self._hooks = hooks
+        self._tget_type = tget_type
 
-    def __call__(self, fn):
-        return _wrapper(fn, self, None)
+    def __call__(self, obj):
+        if self._tget_type == HookMgr.FN_:
+            return _wrapped_fn(obj, self, None)
+        elif self._tget_type == HookMgr.CLASS_:
+            """
+            Class Hook, not like functions, we don't have to care about
+            'bound' or 'unbound' case.
+            """
+            
+            """
+            workaround for empty list of hooks, return input directly.
+            """
+            if len(self._hooks) == 0:
+                return obj
+
+            _, a_, _ = HookMgr._inner_call(self, None, (obj, ), {}, None, HookMgr.IN_)
+            return a_[0]
+        else:
+            raise ValueError(HookMgr.err_msg_wrong_target_type.format(self._tget_type, ))
 
     def _inner_call(self, ret, args, kwargs, inst, ctx):
         """
@@ -182,9 +248,9 @@ class HookManager(object):
         k_ = kwargs
        
         iter_ = None 
-        if ctx == HookManager.IN_:
+        if ctx == HookMgr.IN_:
             iter_ = self._hooks
-        elif ctx == HookManager.OUT_:
+        elif ctx == HookMgr.OUT_:
             iter_ = reversed(self._hooks)
             
         if iter_ == None:
@@ -193,16 +259,16 @@ class HookManager(object):
         for h in iter_:
             # prepare function pointer
             fn_ = None
-            if ctx == HookManager.IN_ and hasattr(h, 'before'):
+            if ctx == HookMgr.IN_ and hasattr(h, 'before'):
                 fn_ = h.before
-            elif ctx == HookManager.OUT_ and hasattr(h, 'after'):
+            elif ctx == HookMgr.OUT_ and hasattr(h, 'after'):
                 fn_ = h.after
             
             if fn_ == None:
                 continue
 
             # prepare for opt_accept_ret
-            tmp_accept_ret = h.opt_accept_ret and ctx == HookManager.OUT_
+            tmp_accept_ret = h.opt_accept_ret and ctx == HookMgr.OUT_
 
             try:
                 k2_ = None
@@ -273,9 +339,9 @@ class HookManager(object):
         return ret, a_, k_
 
 
-class _wrapper(object):
+class _wrapped_fn(object):
     """
-    The actual function class we return to user
+    The actual function class we return to caller
     """
     def __init__(self, fn, hook_mgr, inst):
         self._fn = fn
@@ -288,7 +354,10 @@ class _wrapper(object):
         refer to
             http://blog.ianbicking.org/2008/10/24/decorators-and-descriptors/
             
-        for more information
+        for more information.
+        
+        In short, this makes our hooks work on both 'bound' methods and
+        'unbound' functions.
         """
         if obj == None:
             return self
@@ -298,10 +367,9 @@ class _wrapper(object):
             self._cache_bound_funobj = self.__class__(new_fn, self._hook_mgr, obj)
 
         return self._cache_bound_funobj
-    
-    def __call__(self, *args, **kwargs):
 
-        _, a_, k_ = HookManager._inner_call(self._hook_mgr, None, args, kwargs, self._inst, HookManager.IN_)
+    def __call__(self, *args, **kwargs):
+        _, a_, k_ = HookMgr._inner_call(self._hook_mgr, None, args, kwargs, self._inst, HookMgr.IN_)
         try:
             ret = self._fn(*a_, **k_)
         except Exception as e:
@@ -310,13 +378,28 @@ class _wrapper(object):
             # exception and raise it after looping hooks.
             raise e
 
-        ret, _, _ = HookManager._inner_call(self._hook_mgr, ret, a_, k_, self._inst, HookManager.OUT_)
+        ret, _, _ = HookMgr._inner_call(self._hook_mgr, ret, a_, k_, self._inst, HookMgr.OUT_)
         return ret
 
 
-class attach_(HookManager):
+class attach_(HookMgr):
     """
     A decorator to hook 'in' and 'out' of a function
     """
-    def __init(self, hooks):
-        super(attach_, self).__init__(hooks)
+    def __init__(self, hooks):
+        super(attach_, self).__init__(hooks, HookMgr.FN_)
+
+
+class setup_(HookMgr):
+    """
+    A decorator to patch the created class
+    """
+
+    err_msg_wrong_type_of_hooks = "this hook should not be a valid class decorator: [{}]"
+    
+    def __init__(self, hooks):
+        for h in hooks:
+            if not issubclass(h.__class__, ClsHook):
+                raise ValueError(setup_.err_msg_wrong_type_of_hooks.format(h.__class__.__name__))
+
+        super(setup_, self).__init__(hooks, HookMgr.CLASS_)
