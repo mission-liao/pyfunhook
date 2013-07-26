@@ -189,27 +189,3 @@ class TestClass(unittest.TestCase):
         self.assertEqual(issubclass(C, TmpCls), True)
         self.assertEqual(C().do_something(), "do something!")
 
-    def _test_basic_inhert(self):
-        """
-        Test Usage for inheritance
-        """
-
-        class cls_inhert_parent(object):
-            def __init__(self):
-                pass
-
-            @funhook.attach_([h_test()]) 
-            def func(self, n):
-                return n + 1
-
-        @funhook.setup_([])
-        class cls_inhert_child(cls_inhert_parent):
-            def __init__(self):
-                pass
-
-            def func(self, n):
-                return n + 100
-
-        sc = cls_inhert_child()
-        # TODO: not implemented yet
-        #self.assertEqual(sc.func(1), 102)

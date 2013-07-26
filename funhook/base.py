@@ -10,6 +10,7 @@ Created on Jul 22, 2013
 # TODO: provide options to skip scanning one direction of hooks
 #       when all hooks are either IN_ or OUT_
 # TODO: add case for multiple default arguments.
+# TODO: support passing init-arguments to inherited hooks
 
 
 class Hook(object):
@@ -210,6 +211,8 @@ class HookMgr(object):
     FN_ = 2
 
     err_msg_wrong_target_type = "invalid target type [{}]"
+    
+    err_msg_empty_class = "Empty Class Returned, maybe some hook is bad."
 
     def __init__(self, hooks, tget_type):
         # make sure every hook is subclass from 'Hook'
@@ -236,6 +239,9 @@ class HookMgr(object):
                 return obj
 
             _, a_, _ = HookMgr._inner_call(self, None, (obj, ), {}, None, HookMgr.IN_)
+            if a_[0] == None:
+                raise RuntimeError(HookMgr.err_msg_empty_class)
+            
             return a_[0]
         else:
             raise ValueError(HookMgr.err_msg_wrong_target_type.format(self._tget_type, ))

@@ -10,6 +10,7 @@ TEST_MODULES = [
     'funhook.test.gfun',
     'funhook.test.cls',
     'funhook.test.opt',
+    'funhook.test.builtin.cls.inherit'
 ]
 
 if __name__ == "__main__":
