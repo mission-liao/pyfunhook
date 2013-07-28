@@ -12,7 +12,7 @@ import funhook
     'apa' stands for 'accept_pos_args
     'ak' stands for 'accept_kwargs'
     'ar' stands for 'accept_ret'
-    'as' stands for 'accept_self'
+    'ab' stands for 'accept_bound'
 """ 
 
 class h_none(funhook.Hook):
@@ -21,7 +21,7 @@ class h_none(funhook.Hook):
         self.accept_kwargs = False
         self.accept_pos_args = False
         self.accept_ret = False
-        self.accept_self = False
+        self.accept_bound = False
         
         self.is_called = False
 
@@ -35,7 +35,7 @@ class h_apa(funhook.Hook):
         self.accept_kwargs = False
         self.accept_pos_args = True 
         self.accept_ret = False
-        self.accept_self = False
+        self.accept_bound = False
 
     def before(self, ori, app):
         return (ori+self.__class__.__name__, app,)
@@ -46,7 +46,7 @@ class h_ak(funhook.Hook):
         self.accept_kwargs = True 
         self.accept_pos_args = False
         self.accept_ret = False
-        self.accept_self = False
+        self.accept_bound = False
         
     def before(self, is_double=False):
         # force to turn off 'is_double' flag
@@ -58,7 +58,7 @@ class h_ar(funhook.Hook):
         self.accept_kwargs = False
         self.accept_pos_args = False
         self.accept_ret = True
-        self.accept_self = False
+        self.accept_bound = False
 
     def after(self, ret):
         # do thins bad on return values.
@@ -66,13 +66,13 @@ class h_ar(funhook.Hook):
         new_len = ret[1] - 1
         return (new_str, new_len)
 
-class h_as(funhook.Hook):
+class h_ab(funhook.Hook):
     def __init__(self):
-        super(h_as, self).__init__()
+        super(h_ab, self).__init__()
         self.accept_kwargs = False
         self.accept_pos_args = False
         self.accept_ret = False 
-        self.accept_self = True
+        self.accept_bound = True
         
     def before(self, inst):
         inst._bonus = self.__class__.__name__
@@ -83,7 +83,7 @@ class h_apa_ak(funhook.Hook):
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = False 
-        self.accept_self = False
+        self.accept_bound = False
         
     def before(self, ori, app, is_double=False):
         return (ori+self.__class__.__name__, app, ), {"is_double": True}
@@ -94,7 +94,7 @@ class h_apa_ar(funhook.Hook):
         self.accept_kwargs = False 
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = False
+        self.accept_bound = False
         
         self.ori = ""
         self.app = ""
@@ -106,13 +106,13 @@ class h_apa_ar(funhook.Hook):
         new_str = ret[0] + self.__class__.__name__
         return (new_str, ret[1]), (ori, app, )
     
-class h_apa_as(funhook.Hook):
+class h_apa_ab(funhook.Hook):
     def __init__(self):
-        super(h_apa_as, self).__init__()
+        super(h_apa_ab, self).__init__()
         self.accept_kwargs = False 
         self.accept_pos_args = True
         self.accept_ret = False
-        self.accept_self = True
+        self.accept_bound = True
 
     def before(self, inst, ori, app):
         inst._bonus = self.__class__.__name__
@@ -124,7 +124,7 @@ class h_apa_ak_ar(funhook.Hook):
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = False
+        self.accept_bound = False
         
         self.ori = ""
         self.app = ""
@@ -136,13 +136,13 @@ class h_apa_ak_ar(funhook.Hook):
         self.is_double = is_double
         return ret+self.__class__.__name__, (ori, app, ), {"is_double": is_double}
     
-class h_apa_ak_ar_as(funhook.Hook):
+class h_apa_ak_ar_ab(funhook.Hook):
     def __init__(self):
-        super(h_apa_ak_ar_as, self).__init__()
+        super(h_apa_ak_ar_ab, self).__init__()
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = True
+        self.accept_bound = True
         
         self.is_double = None
         self.ori = ""
@@ -157,25 +157,25 @@ class h_apa_ak_ar_as(funhook.Hook):
         
         return ret+self.__class__.__name__, (ori, app, ), {"is_double": is_double}
 
-class h_apa_ak_as(funhook.Hook):
+class h_apa_ak_ab(funhook.Hook):
     def __init__(self):
-        super(h_apa_ak_as, self).__init__()
+        super(h_apa_ak_ab, self).__init__()
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = False
-        self.accept_self = True
+        self.accept_bound = True
         
     def before(self, inst, ori, app, is_double=False):
         inst._bonus = self.__class__.__name__
         return (ori+self.__class__.__name__, app, ), {"is_double": True}
     
-class h_apa_ar_as(funhook.Hook):
+class h_apa_ar_ab(funhook.Hook):
     def __init__(self):
-        super(h_apa_ar_as, self).__init__()
+        super(h_apa_ar_ab, self).__init__()
         self.accept_kwargs = False
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = True
+        self.accept_bound = True
         
         self.ori = ""
         self.app = ""
@@ -193,32 +193,32 @@ class h_ak_ar(funhook.Hook):
         self.accept_kwargs = True
         self.accept_pos_args = False
         self.accept_ret = True
-        self.accept_self = False
+        self.accept_bound = False
         
         self.is_double = None
     def after(self, ret, is_double=False):
         self.is_double = is_double
         return ret+self.__class__.__name__, {"is_double": is_double}
 
-class h_ak_as(funhook.Hook):
+class h_ak_ab(funhook.Hook):
     def __init__(self):
-        super(h_ak_as, self).__init__()
+        super(h_ak_ab, self).__init__()
         self.accept_kwargs = True
         self.accept_pos_args = False
         self.accept_ret = False
-        self.accept_self = True
+        self.accept_bound = True
         
     def before(self, inst, is_double=False):
         inst._bonus = self.__class__.__name__
         return {"is_double": True}
     
-class h_ak_ar_as(funhook.Hook):
+class h_ak_ar_ab(funhook.Hook):
     def __init__(self):
-        super(h_ak_ar_as, self).__init__()
+        super(h_ak_ar_ab, self).__init__()
         self.accept_kwargs = True
         self.accept_pos_args = False
         self.accept_ret = True 
-        self.accept_self = True
+        self.accept_bound = True
 
         self.is_double = None
         
@@ -228,13 +228,13 @@ class h_ak_ar_as(funhook.Hook):
         
         return ret+self.__class__.__name__, {"is_double": is_double}
     
-class h_ar_as(funhook.Hook):
+class h_ar_ab(funhook.Hook):
     def __init__(self):
-        super(h_ar_as, self).__init__()
+        super(h_ar_ab, self).__init__()
         self.accept_kwargs = False
         self.accept_pos_args = False
         self.accept_ret = True 
-        self.accept_self = True       
+        self.accept_bound = True       
 
     def after(self, ret, inst):
         inst._bonus = self.__class__.__name__
@@ -314,13 +314,13 @@ class TestOption(unittest.TestCase):
         self.assertEqual(wrapped_fn('this is', ' cool', is_double=True), ('this is cool cool qoo.', 16))
     
     def test_as(self):
-        h = h_as()
+        h = h_ab()
         c = cls('my_bonus')
 
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is coolh_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is coolh_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn
@@ -342,14 +342,14 @@ class TestOption(unittest.TestCase):
         self.assertEqual(h.ori, "this is ")
         self.assertEqual(h.app, "cool")
     
-    def test_apa_as(self):
-        h = h_apa_as()
+    def test_apa_ab(self):
+        h = h_apa_ab()
         c = cls('my_bonus')
 
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_as coolh_apa_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_ab coolh_apa_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn
@@ -362,14 +362,14 @@ class TestOption(unittest.TestCase):
         self.assertEqual(h.app, 'cool')
         self.assertEqual(h.is_double, True)
         
-    def test_apa_ak_ar_as(self):
-        h = h_apa_ak_ar_as()
+    def test_apa_ak_ar_ab(self):
+        h = h_apa_ak_ar_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ak_ar_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ak_ar_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
             self.assertEqual(h.ori, 'this is')
             self.assertEqual(h.app, ' cool')
@@ -377,26 +377,26 @@ class TestOption(unittest.TestCase):
         finally:
             cls.fn = ori_fn
     
-    def test_apa_ak_as(self):
-        h = h_apa_ak_as()
+    def test_apa_ak_ab(self):
+        h = h_apa_ak_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_ak_as cool coolh_apa_ak_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this ish_apa_ak_ab cool coolh_apa_ak_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn
     
-    def test_apa_ar_as(self):
-        h = h_apa_ar_as()
+    def test_apa_ar_ab(self):
+        h = h_apa_ar_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ar_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_apa_ar_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
             self.assertEqual(h.ori, "this is")
             self.assertEqual(h.app, " cool")
@@ -412,26 +412,26 @@ class TestOption(unittest.TestCase):
         self.assertEqual(wrapped_fn('this is ', 'cool'), 'this is coolh_ak_ar')
         self.assertEqual(h.is_double, False)
         
-    def test_ak_as(self):
-        h = h_ak_as()
+    def test_ak_ab(self):
+        h = h_ak_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn
     
-    def test_ak_ar_as(self):
-        h = h_ak_as()
+    def test_ak_ar_ab(self):
+        h = h_ak_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is cool coolh_ak_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn
@@ -439,14 +439,14 @@ class TestOption(unittest.TestCase):
     """
     Test cases for turning on 'accept_ret'
     """
-    def test_ar_as(self):
-        h = h_ar_as()
+    def test_ar_ab(self):
+        h = h_ar_ab()
         c = cls('my_bonus')
         
         ori_fn = cls.fn
         try:
             cls.fn = funhook.attach_([h])(c.fn)
-            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_ar_as')
+            self.assertEqual(c.fn('this is', ' cool'), 'this is coolmy_bonush_ar_ab')
             self.assertEqual(c._bonus, h.__class__.__name__)
         finally:
             cls.fn = ori_fn 

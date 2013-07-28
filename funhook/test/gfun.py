@@ -89,7 +89,7 @@ class h_no_ret(funhook.Hook):
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = True
+        self.accept_bound = True
 
         self.pass_before = False
         self.pass_after = False
@@ -111,7 +111,7 @@ class h_comb_str(funhook.Hook):
         self.accept_kwargs = False
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_self = False
+        self.accept_bound = False
         self.new_s = new_s
         self.new_app = new_app
         

@@ -37,11 +37,11 @@ class TestClass(unittest.TestCase):
         Basic Usage
         """
 
-        class h_accept_self(funhook.Hook):
+        class h_accept_bound(funhook.Hook):
             def __init__(self):
-                super(h_accept_self, self).__init__()
+                super(h_accept_bound, self).__init__()
                 self.accept_kwargs = False
-                self.accept_self = True
+                self.accept_bound = True
                 self.accept_pos_args = True
 
             def before(self, inst, n):
@@ -56,15 +56,15 @@ class TestClass(unittest.TestCase):
             def sample_func(self, n):
                 return n + 1
     
-            @funhook.attach_([h_accept_self()])
-            def sample_func_accept_self(self, n):
+            @funhook.attach_([h_accept_bound()])
+            def sample_func_accept_bound(self, n):
                 return n + 3
                 
         sc = cls_()
         self.assertEqual(sc.sample_func(1), 3)
         self.assertEqual(sc.sample_func(5), 7) # run twice to make sure not state is kept
         
-        self.assertEqual(sc.sample_func_accept_self(1), 6)
+        self.assertEqual(sc.sample_func_accept_bound(1), 6)
         self.assertEqual(sc.chk, False)
         
     def test_both_metho_function(self):
@@ -107,7 +107,7 @@ class TestClass(unittest.TestCase):
             def __init__(self):
                 super(clsh_set_prop, self).__init__()
                 self.accept_kwargs = False
-                self.accept_self = True
+                self.accept_bound = True
                 self.accept_pos_args = True
                 self.accept_ret = True
 
@@ -199,7 +199,7 @@ class TestClass(unittest.TestCase):
                 self.accept_kwargs = False
                 self.accept_pos_args = True
                 self.accept_ret = False
-                self.accept_self = False
+                self.accept_bound = False
 
                 self.klass_name = ""
 
@@ -243,7 +243,7 @@ class TestClass(unittest.TestCase):
                 self.accept_kwargs = False
                 self.accept_pos_args = True
                 self.accept_ret = False
-                self.accept_self = False
+                self.accept_bound = False
 
                 self.klass_name = ""
 

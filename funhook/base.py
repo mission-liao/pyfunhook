@@ -99,7 +99,9 @@ class Hook(object):
         # when hooked on a class-method.
         # this parameter would be 'None' for
         # unbounded method
-        self.opt_accept_self = False
+        # or accept 'klass' as first-parameter
+        # in classmethod case
+        self.opt_accept_bound = False
 
     @property
     def accept_pos_args(self):
@@ -135,15 +137,15 @@ class Hook(object):
         self.opt_accept_kwargs = v
         
     @property
-    def accept_self(self):
-        return self.opt_accept_self
+    def accept_bound(self):
+        return self.opt_accept_bound
     
-    @accept_self.setter
-    def accept_self(self, v):
+    @accept_bound.setter
+    def accept_bound(self, v):
         if type(v) != bool:
             raise TypeError(Hook.error_type_not_bool)
 
-        self.opt_accept_self = v
+        self.opt_accept_bound = v
 
 
 class ClsHook(Hook):
@@ -159,7 +161,7 @@ class ClsHook(Hook):
         self.opt_accept_kwargs = False
         self.opt_accept_pos_args = True
         self.opt_accept_ret = False
-        self.opt_accept_self = False
+        self.opt_accept_bound = False
         
         if hasattr(self, 'after'):
             raise Exception(ClsHook.err_msg_no_after)
@@ -192,11 +194,11 @@ class ClsHook(Hook):
         raise Exception(ClsHook.err_msg_op_prohibit)
 
     @property
-    def accept_self(self):
-        return self.opt_accept_self
+    def accept_bound(self):
+        return self.opt_accept_bound
 
-    @accept_self.setter
-    def accept_self(self, v):
+    @accept_bound.setter
+    def accept_bound(self, v):
         raise Exception(ClsHook.err_msg_op_prohibit)
  
 class HookMgr(object):
@@ -282,8 +284,8 @@ class HookMgr(object):
             
             # 'accept_ret' option only allowed in OUT_ context
             patched_accept_ret = h.opt_accept_ret and ctx == HookMgr.OUT_
-            # 'accept_self' would be aggregated with auto_bound_ option
-            patched_accept_self = h.opt_accept_self or auto_bound
+            # 'accept_bound' would be aggregated with auto_bound_ option
+            patched_accept_bound = h.opt_accept_bound or auto_bound
 
             try:
                 k2_ = None
@@ -292,7 +294,7 @@ class HookMgr(object):
                     Hook.accept_ret,
                     Hook.accept_pos_args,
                     Hook.accept_kwargs,
-                    Hook.accept_self,
+                    Hook.accept_bound,
                 options
                 """
                 # TODO: is there a good way
@@ -300,46 +302,46 @@ class HookMgr(object):
                 if patched_accept_ret:
                     if h.opt_accept_kwargs:
                         if h.opt_accept_pos_args:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 ret, a_, k2_ = fn_(ret, bound_, *a_, **k_)
                             else:
                                 ret, a_, k2_ = fn_(ret, *a_, **k_)
                         else:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 ret, k2_ = fn_(ret, bound_, **k_)
                             else:
                                 ret, k2_ = fn_(ret, **k_)
                     else:
                         if h.opt_accept_pos_args:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 ret, a_ = fn_(ret, bound_, *a_)
                             else:
                                 ret, a_ = fn_(ret, *a_)
                         else:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 ret = fn_(ret, bound_)
                             else:
                                 ret = fn_(ret)
                 else:
                     if h.opt_accept_kwargs:
                         if h.opt_accept_pos_args:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 a_, k2_ = fn_(bound_, *a_, **k_)
                             else:
                                 a_, k2_ = fn_(*a_, **k_)
                         else:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 k2_ = fn_(bound_, **k_)
                             else:
                                 k2_ = fn_(**k_)
                     else:
                         if h.opt_accept_pos_args:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 a_ = fn_(bound_, *a_)
                             else:
                                 a_ = fn_(*a_)
                         else:
-                            if patched_accept_self:
+                            if patched_accept_bound:
                                 fn_(bound_)
                             else:
                                 fn_()

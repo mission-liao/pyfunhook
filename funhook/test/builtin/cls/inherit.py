@@ -26,7 +26,7 @@ class TestClsInherit(unittest.TestCase):
                 super(h_test, self).__init__()
                 self.accept_kwargs = False
                 self.accept_ret = False
-                self.accept_self = False
+                self.accept_bound = False
 
             def before(self, n):
                 return (n+1, )
