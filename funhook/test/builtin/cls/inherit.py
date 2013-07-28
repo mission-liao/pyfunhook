@@ -36,6 +36,7 @@ class TestClsInherit(unittest.TestCase):
             def func(self, n):
                 return n + 1
 
+        # seek function to wrap with class object
         @funhook.setup_([adapt_hook_from(cls_p)])
         class cls_chd(cls_p):
             def func(self, n):
@@ -43,3 +44,24 @@ class TestClsInherit(unittest.TestCase):
 
         sc = cls_chd()
         self.assertEqual(sc.func(1), 102)
+
+        class cls_p1(cls_p):
+            def func_not_this_one(self):
+                pass
+            
+        class cls_p2(cls_p):
+            def func_not_found(self):
+                pass
+
+        # seek function to wrap with mro
+        @funhook.setup_([adapt_hook_from()])
+        class cls_chd_1(cls_p1, cls_p2):
+            def func(self, n):
+                return n + 1000
+
+        sc = cls_chd_1()
+        self.assertEqual(sc.func(1), 1002)
+
+        self.assertEqual(issubclass(sc.func.__class__, funhook.base._wrapped_fn), True)
+        self.assertEqual(issubclass(sc.func_not_this_one.__class__, funhook.base._wrapped_fn), False)
+        self.assertEqual(issubclass(sc.func_not_found.__class__, funhook.base._wrapped_fn), False)

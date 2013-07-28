@@ -188,4 +188,92 @@ class TestClass(unittest.TestCase):
        
         self.assertEqual(issubclass(C, TmpCls), True)
         self.assertEqual(C().do_something(), "do something!")
+        
+    def test_classmethod(self):
+        """
+        make sure classmethod works along with our hooks
+        """
+        class h_clsm(funhook.Hook):
+            def __init__(self):
+                super(h_clsm, self).__init__()
+                self.accept_kwargs = False
+                self.accept_pos_args = True
+                self.accept_ret = False
+                self.accept_self = False
 
+                self.klass_name = ""
+
+            def before(self, inst, s):
+                return (inst, inst.__name__+s, )
+            
+        class cls_1(object):
+            """
+            test case for a function decorated by funhook
+            and then by classmethod.
+            """
+            @classmethod
+            @funhook.attach_([h_clsm()])
+            def ret(klass, s):
+                return s + klass.__name__
+
+        self.assertEqual(cls_1.ret(" MyHook "), 'cls_1 MyHook cls_1')
+        self.assertEqual(cls_1().ret(" MyHook "), 'cls_1 MyHook cls_1')
+        
+        class cls_2(object):
+            """
+            test case for a function decorated by classmethod and then
+            by funhook.
+            """
+            @funhook.attach_([h_clsm()])
+            @classmethod
+            def ret(klass, s):
+                return s + klass.__name__
+
+        self.assertEqual(cls_2.ret(" MyHook "), 'cls_2 MyHook cls_2')
+        self.assertEqual(cls_2().ret(" MyHook "), 'cls_2 MyHook cls_2')
+
+
+    def test_staticmethod(self):
+        """
+        make sure staticmethod works along with our hooks
+        """
+        class h_stcm(funhook.Hook):
+            def __init__(self):
+                super(h_stcm, self).__init__()
+                self.accept_kwargs = False
+                self.accept_pos_args = True
+                self.accept_ret = False
+                self.accept_self = False
+
+                self.klass_name = ""
+
+            def before(self, s):
+                s = self.__class__.__name__ + s
+                
+                return (s, )
+            
+        class cls_1(object):
+            """
+            test case for a function decorated by funhook
+            and then by staticmethod.
+            """
+            @staticmethod
+            @funhook.attach_([h_stcm()])
+            def ret(s):
+                return s + "a static m"
+
+        self.assertEqual(cls_1.ret(" MyHook "), 'h_stcm MyHook a static m')
+        self.assertEqual(cls_1().ret(" MyHook "), 'h_stcm MyHook a static m')
+        
+        class cls_2(object):
+            """
+            test case for a function decorated by staticmethod and then
+            by funhook.
+            """
+            @funhook.attach_([h_stcm()])
+            @staticmethod
+            def ret(s):
+                return s + "a static m"
+            
+        self.assertEqual(cls_2.ret(" MyHook "), 'h_stcm MyHook a static m')
+        self.assertEqual(cls_2().ret(" MyHook "), 'h_stcm MyHook a static m')

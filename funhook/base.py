@@ -11,6 +11,8 @@ Created on Jul 22, 2013
 #       when all hooks are either IN_ or OUT_
 # TODO: add case for multiple default arguments.
 # TODO: support passing init-arguments to inherited hooks
+# TODO: inspect.ismethod and inspect.isfunction can't find
+# our wrapped functions.
 
 
 class Hook(object):
@@ -225,20 +227,20 @@ class HookMgr(object):
 
     def __call__(self, obj):
         if self._tget_type == HookMgr.FN_:
-            return _wrapped_fn(obj, self, None)
+            return _wrapped_fn(obj, self, None, is_clsm=False)
         elif self._tget_type == HookMgr.CLASS_:
             """
             Class Hook, not like functions, we don't have to care about
             'bound' or 'unbound' case.
             """
-            
+
             """
             workaround for empty list of hooks, return input directly.
             """
             if len(self._hooks) == 0:
                 return obj
 
-            _, a_, _ = HookMgr._inner_call(self, None, (obj, ), {}, None, HookMgr.IN_)
+            _, a_, _ = HookMgr._inner_call(self, None, (obj, ), {}, None, auto_bound=False, ctx=HookMgr.IN_)
             if a_[0] == None:
                 raise RuntimeError(HookMgr.err_msg_empty_class)
             
@@ -246,13 +248,13 @@ class HookMgr(object):
         else:
             raise ValueError(HookMgr.err_msg_wrong_target_type.format(self._tget_type, ))
 
-    def _inner_call(self, ret, args, kwargs, inst, ctx):
+    def _inner_call(self, ret, args, kwargs, bound_, auto_bound=False, ctx=None):
         """
         loop through hooks
         """
         a_ = args
         k_ = kwargs
-       
+
         iter_ = None 
         if ctx == HookMgr.IN_:
             iter_ = self._hooks
@@ -273,8 +275,15 @@ class HookMgr(object):
             if fn_ == None:
                 continue
 
-            # prepare for opt_accept_ret
-            tmp_accept_ret = h.opt_accept_ret and ctx == HookMgr.OUT_
+            """
+            special patch for options,
+            they are usually warkaround for something.
+            """
+            
+            # 'accept_ret' option only allowed in OUT_ context
+            patched_accept_ret = h.opt_accept_ret and ctx == HookMgr.OUT_
+            # 'accept_self' would be aggregated with auto_bound_ option
+            patched_accept_self = h.opt_accept_self or auto_bound
 
             try:
                 k2_ = None
@@ -288,50 +297,50 @@ class HookMgr(object):
                 """
                 # TODO: is there a good way
                 # to handle such mass??
-                if tmp_accept_ret:
+                if patched_accept_ret:
                     if h.opt_accept_kwargs:
                         if h.opt_accept_pos_args:
-                            if h.opt_accept_self:
-                                ret, a_, k2_ = fn_(ret, inst, *a_, **k_)
+                            if patched_accept_self:
+                                ret, a_, k2_ = fn_(ret, bound_, *a_, **k_)
                             else:
                                 ret, a_, k2_ = fn_(ret, *a_, **k_)
                         else:
-                            if h.opt_accept_self:
-                                ret, k2_ = fn_(ret, inst, **k_)
+                            if patched_accept_self:
+                                ret, k2_ = fn_(ret, bound_, **k_)
                             else:
                                 ret, k2_ = fn_(ret, **k_)
                     else:
                         if h.opt_accept_pos_args:
-                            if h.opt_accept_self:
-                                ret, a_ = fn_(ret, inst, *a_)
+                            if patched_accept_self:
+                                ret, a_ = fn_(ret, bound_, *a_)
                             else:
                                 ret, a_ = fn_(ret, *a_)
                         else:
-                            if h.opt_accept_self:
-                                ret = fn_(ret, inst)
+                            if patched_accept_self:
+                                ret = fn_(ret, bound_)
                             else:
                                 ret = fn_(ret)
                 else:
                     if h.opt_accept_kwargs:
                         if h.opt_accept_pos_args:
-                            if h.opt_accept_self:
-                                a_, k2_ = fn_(inst, *a_, **k_)
+                            if patched_accept_self:
+                                a_, k2_ = fn_(bound_, *a_, **k_)
                             else:
                                 a_, k2_ = fn_(*a_, **k_)
                         else:
-                            if h.opt_accept_self:
-                                k2_ = fn_(inst, **k_)
+                            if patched_accept_self:
+                                k2_ = fn_(bound_, **k_)
                             else:
                                 k2_ = fn_(**k_)
                     else:
                         if h.opt_accept_pos_args:
-                            if h.opt_accept_self:
-                                a_ = fn_(inst, *a_)
+                            if patched_accept_self:
+                                a_ = fn_(bound_, *a_)
                             else:
                                 a_ = fn_(*a_)
                         else:
-                            if h.opt_accept_self:
-                                fn_(inst)
+                            if patched_accept_self:
+                                fn_(bound_)
                             else:
                                 fn_()
 
@@ -349,14 +358,38 @@ class _wrapped_fn(object):
     """
     The actual function class we return to caller
     """
-    def __init__(self, fn, hook_mgr, inst):
+    def __init__(self, fn, hook_mgr, bound, is_clsm):
         self._fn = fn
         self._hook_mgr = hook_mgr
-        self._inst = inst
-        self._cache_bound_funobj = None
+        self._bound = bound 
+        self._cache_funobj = None
+        self._is_classmethod = is_clsm
 
     def __get__(self, obj, obj_type):
+
         """
+        for classmethod and staticmethod
+        
+        these function-type are actually builtin types, and not callable.
+        They are just descriptor, and we need to get actuall callable from
+        their __get__.
+        """
+        if  type(self._fn) is classmethod or \
+            type(self._fn) is staticmethod:
+            if self._cache_funobj == None:
+                new_fn = self._fn.__get__(obj, obj_type)
+                if type(self._fn) is classmethod:
+                    self._cache_funobj = \
+                        self.__class__(new_fn, self._hook_mgr, obj_type, is_clsm=True)
+                else:
+                    self._cache_funobj = \
+                        self.__class__(new_fn, self._hook_mgr, None, is_clsm=False)
+
+            return self._cache_funobj
+        
+        """
+        normal instance method
+
         refer to
             http://blog.ianbicking.org/2008/10/24/decorators-and-descriptors/
             
@@ -368,15 +401,25 @@ class _wrapped_fn(object):
         if obj == None:
             return self
 
-        if self._cache_bound_funobj == None:
+        if self._cache_funobj == None:
             new_fn = self._fn.__get__(obj, obj_type)
-            self._cache_bound_funobj = self.__class__(new_fn, self._hook_mgr, obj)
+            self._cache_funobj = self.__class__(new_fn, self._hook_mgr, obj, is_clsm=False)
 
-        return self._cache_bound_funobj
+        return self._cache_funobj
 
     def __call__(self, *args, **kwargs):
-        _, a_, k_ = HookMgr._inner_call(self._hook_mgr, None, args, kwargs, self._inst, HookMgr.IN_)
+        a_ = args
+        # workaround for classmethod decorator
+        _, a_, k_ = HookMgr._inner_call(self._hook_mgr, None, a_, kwargs, self._bound, auto_bound=self._is_classmethod, ctx=HookMgr.IN_)
         try:
+            """
+            workaround for classmethod.
+            
+            the bounded method returned by classmethod's __get__
+            is already bound to klass, we don't need to pass it
+            """
+            if self._is_classmethod:
+                a_ = a_[1:]
             ret = self._fn(*a_, **k_)
         except Exception as e:
             # TODO: how to handle exception from
@@ -384,7 +427,7 @@ class _wrapped_fn(object):
             # exception and raise it after looping hooks.
             raise e
 
-        ret, _, _ = HookMgr._inner_call(self._hook_mgr, ret, a_, k_, self._inst, HookMgr.OUT_)
+        ret, _, _ = HookMgr._inner_call(self._hook_mgr, ret, a_, k_, self._bound, auto_bound=self._is_classmethod, ctx=HookMgr.OUT_)
         return ret
 
 
