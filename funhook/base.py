@@ -16,68 +16,23 @@ Created on Jul 22, 2013
 
 
 class Hook(object):
-    """
-    base hook implementation
-    ------------------------
-    Guide for writing hooks
-
-    1. For writing hooks to be attached in a function
-       is called.
-
-       ex.
-       class myhook(funhook.Hook):
-           def __init__(self ...):
-               super...
-               
-           def before(self, a, b, c, isDebug=False):
-               ... do something
-               return (a, b, c,), {"isDebug": isDebug}
-
-       @funhook.attach_([myhook(...)])
-       def myfunc(a, b, c, isDebug=False):
-           pass
-
-       You can pass options to your hook in __init__.
-       
-       ex.
-       class myhook(funhook.Hook):
-           def __init__(self, allow_rethrow=True):
-               ...
-               
-       @funhook.attach_([myhook(allow_rethrow=False)])
-       def myfunc(...)
-       
-       If the function to be wrapped coming with a massive
-       amount of keyword-arguments, and you don't want to
-       overwrite any one of them, you can skip them in your
-       hook by turning off 'accept_kwargs' option in __init__.
-       And, please note that don't return packed kwargs as {}
-       in this case.
-
-       ex.
-       class myhook(funhook.Hook):
-           def __init__(self ...):
-               super...
-               self.accept_kwargs = False
-               
-           def before(self, a, b, c, isDebug=False):
-               ... do something
-               return (a, b, c,)
+    """ base implementation of a Hook
+    
+    Member variable:
+    opt_accept_pos_args -- if this hook accept position arguments.
+    opt_accept_kwargs -- if this hook accept keyword arguments.
+    opt_accept_ret -- if this hook accept return-value for hookee.
+        this option only valid for hooks implementing 'after'
+        callback.
+    opt_accpet_bound -- if this hook accept 'self' when hookee is
+        a bounded method, and accept 'klass' when hookee is a
+        classmethod.
         
-       
-    2. The prototype for hooking "out_" the function is almost
-       identical to original function and prepend a "return" value.
-
-       ex.
-       class myhook(funhook.Hook):
-           ...
-           def after(self, ret, a, b, c, isDebug=False):
-               ... do something
-               return ret, (a, b, c,), {"isDebug": isDebug}
-
-       @funhook.attach_([myhook])
-       def myfunc(a, b, c, isDebug=Fales):
-           pass
+    Callbacks:
+    after -- this callback would be called after hookee is called.
+        It can be used to monitor/modify return value.
+    before -- this callback would be called before hookee is called.
+        It can be used to modify input variables.
     """
   
     # standard error message for wrong type with option.
@@ -149,8 +104,19 @@ class Hook(object):
 
 
 class ClsHook(Hook):
-    """
-    Hook for class
+    """ Hook for class decorator
+    
+    This hook provide default option-settings for a hook.
+    And it prohibits any changes to them.
+    
+    Default setting for Class-Hook:
+    accept-keyword-argument -- No
+    accept-keyword-argument -- Yes
+    accept-ret -- No
+    accept-bound -- No
+    
+    Besides these, it must not provide 'after' callback.
+    We would 'call' nothing in Class-Hook case.
     """
     
     err_msg_op_prohibit = "This action is prohibit."
@@ -202,10 +168,21 @@ class ClsHook(Hook):
         raise Exception(ClsHook.err_msg_op_prohibit)
  
 class HookMgr(object):
-    """
-    base hook-manager implementation
-    """
+    """ base hook-manager implementation
     
+    This class keeps the list of hooks provided by users.
+    And the real trigger to those hooks is here, too.
+    
+    Static Members:
+    IN_ -- before calling the decorated function.
+        Only valid when target is FN_.
+    OUT_ -- after calling the decorated function
+        Only valid when target is CLASS_.
+    
+    CLASS_ -- target is a decorated class.
+    FN_ -- target is a decorated function.
+    """
+
     # hook context
     IN_ = 1
     OUT_ = 2
@@ -229,6 +206,8 @@ class HookMgr(object):
 
     def __call__(self, obj):
         if self._tget_type == HookMgr.FN_:
+            # we need to return a special object to handle
+            # the complex bound scenario of functions/methods.
             return _wrapped_fn(obj, self, None, is_clsm=False)
         elif self._tget_type == HookMgr.CLASS_:
             """
@@ -251,8 +230,22 @@ class HookMgr(object):
             raise ValueError(HookMgr.err_msg_wrong_target_type.format(self._tget_type, ))
 
     def _inner_call(self, ret, args, kwargs, bound_, auto_bound=False, ctx=None):
-        """
-        loop through hooks
+        """ real trigger for hooks
+        
+        Position Arguments:
+        ret -- return value of hookee, should be None when ctx is IN_.
+        args -- positional arguments passed to hookee.
+        kwargs -- keyword arguments passed to hookee.
+        bound_ -- in method, this one refers to 'self'. And in classmethod,
+            this one refers to 'klass'.
+            
+        Keyword Arguments
+        auto_bound -- if we have to prepend 'bound_' parameter to args?
+        ctx -- current running context, could be HookMgr.IN_ or HookMgr.OUT_.
+        
+        Return:
+        A tuple contains 3 elements: patched return value, patched positional
+        arguments, patched keyword arguments.
         """
         a_ = args
         k_ = kwargs
@@ -357,8 +350,10 @@ class HookMgr(object):
 
 
 class _wrapped_fn(object):
-    """
-    The actual function class we return to caller
+    """ The actual function class we return to caller
+    
+    We resolve the bound behavior in python method in
+    this calss' __get__
     """
     def __init__(self, fn, hook_mgr, bound, is_clsm):
         self._fn = fn
@@ -434,16 +429,14 @@ class _wrapped_fn(object):
 
 
 class attach_(HookMgr):
-    """
-    A decorator to hook 'in' and 'out' of a function
+    """ A decorator to hook 'in' and 'out' of a function
     """
     def __init__(self, hooks):
         super(attach_, self).__init__(hooks, HookMgr.FN_)
 
 
 class setup_(HookMgr):
-    """
-    A decorator to patch the created class
+    """ A decorator to patch the created class
     """
 
     err_msg_wrong_type_of_hooks = "this hook should not be a valid class decorator: [{}]"
