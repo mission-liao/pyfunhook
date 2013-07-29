@@ -353,7 +353,7 @@ class _wrapped_fn(object):
     """ The actual function class we return to caller
     
     We resolve the bound behavior in python method in
-    this calss' __get__
+    this class' __get__
     """
     def __init__(self, fn, hook_mgr, bound, is_clsm):
         self._fn = fn
