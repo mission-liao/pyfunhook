@@ -5,14 +5,11 @@ Created on Jul 22, 2013
 '''
 
 
-# TODO: add case for 'inout' trigger
 # TODO: write guide to let users know for multiple return values
 # TODO: provide options to skip scanning one direction of hooks
 #       when all hooks are either IN_ or OUT_
 # TODO: add case for multiple default arguments.
 # TODO: support passing init-arguments to inherited hooks
-# TODO: inspect.ismethod and inspect.isfunction can't find
-# our wrapped functions.
 
 
 class Hook(object):
@@ -24,10 +21,7 @@ class Hook(object):
     opt_accept_ret -- if this hook accept return-value for hookee.
         this option only valid for hooks implementing 'after'
         callback.
-    opt_accpet_bound -- if this hook accept 'self' when hookee is
-        a bounded method, and accept 'klass' when hookee is a
-        classmethod.
-        
+
     Callbacks:
     after -- this callback would be called after hookee is called.
         It can be used to monitor/modify return value.
@@ -50,13 +44,6 @@ class Hook(object):
         self.opt_accept_kwargs = True 
         # hooks are "in" type by default
         self.opt_accept_ret = False
-        # accept 'self' as first-parameter
-        # when hooked on a class-method.
-        # this parameter would be 'None' for
-        # unbounded method
-        # or accept 'klass' as first-parameter
-        # in classmethod case
-        self.opt_accept_bound = False
 
     @property
     def accept_pos_args(self):
@@ -91,17 +78,6 @@ class Hook(object):
         
         self.opt_accept_kwargs = v
         
-    @property
-    def accept_bound(self):
-        return self.opt_accept_bound
-    
-    @accept_bound.setter
-    def accept_bound(self, v):
-        if type(v) != bool:
-            raise TypeError(Hook.error_type_not_bool)
-
-        self.opt_accept_bound = v
-
 
 class ClsHook(Hook):
     """ Hook for class decorator
@@ -113,8 +89,7 @@ class ClsHook(Hook):
     accept-keyword-argument -- No
     accept-keyword-argument -- Yes
     accept-ret -- No
-    accept-bound -- No
-    
+
     Besides these, it must not provide 'after' callback.
     We would 'call' nothing in Class-Hook case.
     """
@@ -127,8 +102,7 @@ class ClsHook(Hook):
         self.opt_accept_kwargs = False
         self.opt_accept_pos_args = True
         self.opt_accept_ret = False
-        self.opt_accept_bound = False
-        
+
         if hasattr(self, 'after'):
             raise Exception(ClsHook.err_msg_no_after)
 
@@ -159,14 +133,7 @@ class ClsHook(Hook):
     def accept_ret(self, v):
         raise Exception(ClsHook.err_msg_op_prohibit)
 
-    @property
-    def accept_bound(self):
-        return self.opt_accept_bound
 
-    @accept_bound.setter
-    def accept_bound(self, v):
-        raise Exception(ClsHook.err_msg_op_prohibit)
- 
 class HookMgr(object):
     """ base hook-manager implementation
     
@@ -240,7 +207,8 @@ class HookMgr(object):
             this one refers to 'klass'.
             
         Keyword Arguments
-        auto_bound -- if we have to prepend 'bound_' parameter to args?
+        auto_bound -- bound 'bound_' parameter to positional argument(args).
+            It's a workaround for classmethod.
         ctx -- current running context, could be HookMgr.IN_ or HookMgr.OUT_.
         
         Return:
@@ -251,21 +219,36 @@ class HookMgr(object):
         k_ = kwargs
 
         iter_ = None 
-        if ctx == HookMgr.IN_:
+        if ctx == HookMgr.IN_ or self._tget_type == HookMgr.CLASS_:
             iter_ = self._hooks
         elif ctx == HookMgr.OUT_:
             iter_ = reversed(self._hooks)
             
         if iter_ == None:
             raise ValueError("unknown context: " + str(ctx))
+        
+        # check for things not allowed in HookMgr.CLASS_
+        if self._tget_type == HookMgr.CLASS_:
+            if auto_bound:
+                raise ValueError("invalid configuration: auto_bound for ClsHook.")
+            if ctx == HookMgr.OUT_:
+                raise ValueError("invalid configuration: OUT_ context for ClsHook.")
 
+        base_in_args_ = ()
+        if self._tget_type == HookMgr.FN_:
+            base_in_args_ = (bound_, )
+            if auto_bound:               
+                a_ = (bound_, ) + a_
+ 
         for h in iter_:
             # prepare function pointer
             fn_ = None
-            if ctx == HookMgr.IN_ and hasattr(h, 'before'):
-                fn_ = h.before
-            elif ctx == HookMgr.OUT_ and hasattr(h, 'after'):
-                fn_ = h.after
+            if ctx == HookMgr.IN_ or self._tget_type == HookMgr.CLASS_:
+                if hasattr(h, 'before'):
+                    fn_ = h.before
+            elif ctx == HookMgr.OUT_:
+                if hasattr(h, 'after'):
+                    fn_ = h.after
             
             if fn_ == None:
                 continue
@@ -274,71 +257,50 @@ class HookMgr(object):
             special patch for options,
             they are usually warkaround for something.
             """
-            
+
             # 'accept_ret' option only allowed in OUT_ context
             patched_accept_ret = h.opt_accept_ret and ctx == HookMgr.OUT_
-            # 'accept_bound' would be aggregated with auto_bound_ option
-            patched_accept_bound = h.opt_accept_bound or auto_bound
 
             try:
                 k2_ = None
+                
+                # prepare input arguments
+                in_args_ = base_in_args_
+                if patched_accept_ret:
+                    in_args_ = in_args_ + (ret, )
+                if h.opt_accept_pos_args:
+                    in_args_ = in_args_ + a_
+                    
                 """
                 handle
-                    Hook.accept_ret,
                     Hook.accept_pos_args,
                     Hook.accept_kwargs,
-                    Hook.accept_bound,
+                    Hook.accept_ret,
                 options
                 """
-                # TODO: is there a good way
-                # to handle such mass??
-                if patched_accept_ret:
-                    if h.opt_accept_kwargs:
-                        if h.opt_accept_pos_args:
-                            if patched_accept_bound:
-                                ret, a_, k2_ = fn_(ret, bound_, *a_, **k_)
-                            else:
-                                ret, a_, k2_ = fn_(ret, *a_, **k_)
+                if h.opt_accept_kwargs:
+                    if h.opt_accept_pos_args:
+                        if patched_accept_ret:
+                            ret, a_, k2_ = fn_(*in_args_, **k_)
                         else:
-                            if patched_accept_bound:
-                                ret, k2_ = fn_(ret, bound_, **k_)
-                            else:
-                                ret, k2_ = fn_(ret, **k_)
+                            a_, k2_ = fn_(*in_args_, **k_)
                     else:
-                        if h.opt_accept_pos_args:
-                            if patched_accept_bound:
-                                ret, a_ = fn_(ret, bound_, *a_)
-                            else:
-                                ret, a_ = fn_(ret, *a_)
+                        if patched_accept_ret:
+                            ret, k2_ = fn_(*in_args_, **k_)
                         else:
-                            if patched_accept_bound:
-                                ret = fn_(ret, bound_)
-                            else:
-                                ret = fn_(ret)
+                            k2_ = fn_(*in_args_, **k_)
                 else:
-                    if h.opt_accept_kwargs:
-                        if h.opt_accept_pos_args:
-                            if patched_accept_bound:
-                                a_, k2_ = fn_(bound_, *a_, **k_)
-                            else:
-                                a_, k2_ = fn_(*a_, **k_)
+                    if h.opt_accept_pos_args:
+                        if patched_accept_ret:
+                            ret, a_ = fn_(*in_args_)
                         else:
-                            if patched_accept_bound:
-                                k2_ = fn_(bound_, **k_)
-                            else:
-                                k2_ = fn_(**k_)
+                            a_ = fn_(*in_args_)
                     else:
-                        if h.opt_accept_pos_args:
-                            if patched_accept_bound:
-                                a_ = fn_(bound_, *a_)
-                            else:
-                                a_ = fn_(*a_)
+                        if patched_accept_ret:
+                            ret = fn_(*in_args_)
                         else:
-                            if patched_accept_bound:
-                                fn_(bound_)
-                            else:
-                                fn_()
-
+                            fn_(*in_args_)
+    
                 if k2_:
                     k_.update(k2_)
 

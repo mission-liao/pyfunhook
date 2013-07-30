@@ -18,7 +18,7 @@ class h_test(funhook.Hook):
         super(h_test, self).__init__()
         self.accept_kwargs = False
 
-    def before(self, n):
+    def before(self, bnd, n):
         return (n+1, )
 
 
@@ -41,11 +41,10 @@ class TestClass(unittest.TestCase):
             def __init__(self):
                 super(h_accept_bound, self).__init__()
                 self.accept_kwargs = False
-                self.accept_bound = True
                 self.accept_pos_args = True
 
-            def before(self, inst, n):
-                inst.chk = False
+            def before(self, bnd, n):
+                bnd.chk = False
                 return (n+2, )
     
         class cls_(object):
@@ -107,10 +106,10 @@ class TestClass(unittest.TestCase):
             def __init__(self):
                 super(clsh_set_prop, self).__init__()
                 self.accept_kwargs = False
-                self.accept_bound = True
                 self.accept_pos_args = True
                 self.accept_ret = True
 
+            # TODO: here is wrong
             def before(self, klass):
                 return klass
 
@@ -203,8 +202,8 @@ class TestClass(unittest.TestCase):
 
                 self.klass_name = ""
 
-            def before(self, inst, s):
-                return (inst, inst.__name__+s, )
+            def before(self, bnd, klass, s):
+                return (klass, klass.__name__+s, )
             
         class cls_1(object):
             """
@@ -218,7 +217,7 @@ class TestClass(unittest.TestCase):
 
         self.assertEqual(cls_1.ret(" MyHook "), 'cls_1 MyHook cls_1')
         self.assertEqual(cls_1().ret(" MyHook "), 'cls_1 MyHook cls_1')
-        
+
         class cls_2(object):
             """
             test case for a function decorated by classmethod and then
@@ -247,7 +246,7 @@ class TestClass(unittest.TestCase):
 
                 self.klass_name = ""
 
-            def before(self, s):
+            def before(self, bnd, s):
                 s = self.__class__.__name__ + s
                 
                 return (s, )

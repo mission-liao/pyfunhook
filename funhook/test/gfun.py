@@ -13,7 +13,7 @@ class sample_hook_int(funhook.Hook):
     def __init__(self):
         super(sample_hook_int, self).__init__()
 
-    def before(self, n):
+    def before(self, bnd, n):
         return (n+2, ), None
 
 @funhook.attach_([sample_hook_int()])
@@ -29,7 +29,7 @@ class sample_hook_string_before(funhook.Hook):
     def __init__(self):
         super(sample_hook_string_before, self).__init__()
     
-    def before(self, s):
+    def before(self, bnd, s):
         return (s+"_before", ), None
 
 class sample_hook_string_after(funhook.Hook):
@@ -41,7 +41,7 @@ class sample_hook_string_after(funhook.Hook):
         super(sample_hook_string_after, self).__init__()
         self.accept_ret = True
 
-    def after(self, ret, s):
+    def after(self, bnd, ret, s):
         return ret+"_after", (s, ), None
 
 @funhook.attach_([
@@ -58,7 +58,7 @@ class sample_hook_dict_before(funhook.Hook):
     def __init(self, accept_kwargs):
         super(sample_hook_dict_before, self).__init__()
         
-    def before(self, s, additional="qoo."):
+    def before(self, bnd, s, additional="qoo."):
         return (s,), {"additional": "mylove."}
 
 @funhook.attach_([sample_hook_dict_before()])
@@ -75,7 +75,7 @@ class sample_hook_dict_before_nochange(funhook.Hook):
         super(sample_hook_dict_before_nochange, self).__init__()
         self.accept_kwargs = False
 
-    def before(self, s):
+    def before(self, bnd, s):
         return (s,)
 
 @funhook.attach_([sample_hook_dict_before_nochange()])
@@ -89,16 +89,15 @@ class h_no_ret(funhook.Hook):
         self.accept_kwargs = True
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_bound = True
 
         self.pass_before = False
         self.pass_after = False
 
-    def before(self, inst, s):
+    def before(self, bnd, s):
         self.pass_before = True
         return (s, ), {}
     
-    def after(self, ret, inst, s):
+    def after(self, bnd, ret, s):
         self.pass_after = True
         return ret, (s, ), {}
 
@@ -111,14 +110,13 @@ class h_comb_str(funhook.Hook):
         self.accept_kwargs = False
         self.accept_pos_args = True
         self.accept_ret = True
-        self.accept_bound = False
         self.new_s = new_s
         self.new_app = new_app
         
-    def before(self, s, app):
+    def before(self, bnd, s, app):
         return (self.new_s+s, app, )
     
-    def after(self, ret, s, app):
+    def after(self, bnd, ret, s, app):
         return ret+self.new_app, (s, app, )
 
 @funhook.attach_([

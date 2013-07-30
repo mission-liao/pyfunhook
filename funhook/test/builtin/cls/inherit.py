@@ -26,9 +26,8 @@ class TestClsInherit(unittest.TestCase):
                 super(h_test, self).__init__()
                 self.accept_kwargs = False
                 self.accept_ret = False
-                self.accept_bound = False
 
-            def before(self, n):
+            def before(self, bnd, n):
                 return (n+1, )
     
         class cls_p(object):
