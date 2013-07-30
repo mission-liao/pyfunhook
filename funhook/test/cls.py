@@ -276,3 +276,15 @@ class TestClass(unittest.TestCase):
             
         self.assertEqual(cls_2.ret(" MyHook "), 'h_stcm MyHook a static m')
         self.assertEqual(cls_2().ret(" MyHook "), 'h_stcm MyHook a static m')
+
+    def test_clshook_duplicate(self):
+        
+        class h_dup(funhook.ClsHook):
+            def __init__(self, n, s):
+                super(h_dup, self).__init__(n, s)
+
+            def before(self):
+                pass
+            
+        h = h_dup(10, "test")
+        self.assertRaises(RuntimeError, h.duplicate)

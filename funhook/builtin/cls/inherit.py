@@ -38,8 +38,7 @@ class adapt_hook_from(funhook.ClsHook):
                 # generate a new list of hooks
                 newH = []
                 for h in wfn._hook_mgr._hooks:
-                    # TODO: handle init parameters
-                    newH.append(h.__class__())
+                    newH.append(h.duplicate())
                     
                 setattr(klass, fn_name, funhook.attach_(newH)(getattr(klass, fn_name)))
                 break

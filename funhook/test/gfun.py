@@ -168,5 +168,27 @@ class TestGlobalFunction(unittest.TestCase):
         self.assertEqual(h.pass_before, True)
         
     def test_hook_ordering(self):
+        """
+        make sure the execution order of hooks
+        """
         self.assertEqual(fn_comb_str(' this is ', 'cool '), 's5s4s3s2s1 this is cool app5app4app3app2app1')
 
+    def test_hook_duplicate(self):
+        """
+        make sure duplication of hooks work
+        """
+        class h_dup(funhook.Hook):
+            def __init__(self, n, s, is_debug=True):
+                super(h_dup, self).__init__(n, s, is_debug)
+
+                self._n = n
+                self._s = s
+
+            def before(self, bnd):
+                pass
+
+        h = h_dup(10, "test")
+        h2 = h.duplicate()
+        
+        self.assertEqual(h._n, h2._n)
+        self.assertEqual(h._s, h2._s)

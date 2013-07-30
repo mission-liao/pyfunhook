@@ -34,7 +34,7 @@ class Hook(object):
     # error message for wrong config
     error_wrong_config = "Such configuration is wrong."
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """
         default hook configuration
         """
@@ -44,11 +44,15 @@ class Hook(object):
         self.opt_accept_kwargs = True 
         # hooks are "in" type by default
         self.opt_accept_ret = False
+        
+        # kept for re-creating the same hook
+        self._init_args = args
+        self._init_kwrags = kwargs
 
     @property
     def accept_pos_args(self):
         return self.opt_accept_pos_args
-    
+
     @accept_pos_args.setter
     def accept_pos_args(self, v):
         if type(v) != bool:
@@ -77,7 +81,10 @@ class Hook(object):
             raise TypeError(Hook.error_type_not_bool)
         
         self.opt_accept_kwargs = v
-        
+
+    def duplicate(self):
+        return self.__class__(*self._init_args, **self._init_kwrags)
+
 
 class ClsHook(Hook):
     """ Hook for class decorator
@@ -97,8 +104,8 @@ class ClsHook(Hook):
     err_msg_op_prohibit = "This action is prohibit."
     err_msg_no_after = "\'after\' member function is not allowed."
     
-    def __init__(self):
-        super(ClsHook, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(ClsHook, self).__init__(*args, **kwargs)
         self.opt_accept_kwargs = False
         self.opt_accept_pos_args = True
         self.opt_accept_ret = False
@@ -132,6 +139,9 @@ class ClsHook(Hook):
     @accept_ret.setter
     def accept_ret(self, v):
         raise Exception(ClsHook.err_msg_op_prohibit)
+    
+    def duplicate(self):
+        raise RuntimeError("duplicate on ClsHook is not allowed.")
 
 
 class HookMgr(object):
